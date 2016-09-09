@@ -62,7 +62,7 @@ public class Dept {
 		return hasTVAUser;
 	}
 
-	public Vector<String> getDepts(HashMap<String,String> WWIDToUserIDsMap, String prefixProvided) {
+	public Vector<String> getDepts(HashMap<String,String> WWIDToUserIDsMap, String prefixProvided, boolean showNonTVAUsers) {
 		Vector<String> retval = new Vector<String>();
 		
 		String myPrefix = prefixProvided != null ? prefixProvided : Dept.prefix;
@@ -74,13 +74,14 @@ public class Dept {
 		retval.add("D: ID:" + deptId + " | NAME: " + deptName + " | manager: " + manager.name);
 
 		for (Employee e : employees) {
-			retval.add(myPrefix + "E: " + (WWIDToUserIDsMap.get(e.WWID) != null ? "" : " ** ") 
-		+ e.name + " | " + deptName);
+			if (WWIDToUserIDsMap.get(e.WWID) != null || showNonTVAUsers) {
+				retval.add(myPrefix + "E: " + (WWIDToUserIDsMap.get(e.WWID) != null ? "" : " ** ") + e.name + " | " + deptName);
+			}
 		}
 
 		if (!childDepts.isEmpty()) {
 			for (Dept d : childDepts) {
-				Vector<String> recursedRetval = d.getDepts(WWIDToUserIDsMap, myPrefix);
+				Vector<String> recursedRetval = d.getDepts(WWIDToUserIDsMap, myPrefix, showNonTVAUsers);
 				// now prefix the returned strings
 
 				//Collections.sort(recursedRetval);

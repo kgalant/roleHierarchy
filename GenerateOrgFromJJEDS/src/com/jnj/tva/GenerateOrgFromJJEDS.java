@@ -49,6 +49,11 @@ public class GenerateOrgFromJJEDS {
 	private static final String OUTPUTUSERROLESFILENAME = "outputUserRolesFile";
 
 	private static final String HIERARCHYOUTPUTPREFIX = "hierarchyOutputPrefix";
+	
+	private static final String MASTERROLEID = "masterRoleId";
+	private static final String SFDCMASTERROLE = "SFDCMasterRole";
+	private static final String SHOWNONTVAUSERS = "showNonTVAUsers";
+	
 
 
 
@@ -215,6 +220,46 @@ public class GenerateOrgFromJJEDS {
 				e.generateDeptStructure(myDeptsMap);
 			}
 		}
+		
+		// pass 4.5 - restructure hierarchy if required
+		
+		if (props.getProperty(MASTERROLEID) != null && props.getProperty(SFDCMASTERROLE) != null) {
+			
+			Dept masterDepartment = null;
+			
+			for (Dept d : myDeptsMap.values()) {
+				if (d.parentDept == null && d.manager.WWID.equals(props.getProperty(MASTERROLEID)) && !d.isDirectReportsDept) {
+					masterDepartment = d;
+					break;
+				}
+			}
+			
+			if (masterDepartment != null) {
+				// out of the loop, remove the master dept from the current map
+				
+				myDeptsMap.remove(masterDepartment.deptId);
+				
+				// set its new deptid
+				
+				masterDepartment.deptId = props.getProperty(SFDCMASTERROLE);
+				
+				// add back into map
+				
+				myDeptsMap.put(masterDepartment.deptId, masterDepartment);
+			}
+
+			// now run through all other depts which don't have a parent, and point them at the master
+			
+			for (Dept d : myDeptsMap.values()) {
+				if (d.parentDept == null && d != masterDepartment) {
+					// top level dept - but not the master dept
+					// put it under the master role
+					
+					d.parentDept = masterDepartment;
+					masterDepartment.childDepts.add(d);
+				}
+			} 
+		}
 
 		// fifth pass - output dept structure - human-friendly
 
@@ -224,7 +269,11 @@ public class GenerateOrgFromJJEDS {
 		for (Dept d : myDeptsMap.values()) {
 			if (d.parentDept == null) {
 				// top level dept - output it
-				Vector<String> deptNames = d.getDepts(myWWIDToUserIDsMap, hierarchyOutputPrefix);
+				Vector<String> deptNames = d.getDepts(myWWIDToUserIDsMap, hierarchyOutputPrefix, 
+						props.getProperty(SHOWNONTVAUSERS) == null ||
+						props.getProperty(SHOWNONTVAUSERS).equals("0") ||
+						props.getProperty(SHOWNONTVAUSERS).toLowerCase().equals("false") ? false : true
+						);
 				for (String s : deptNames) {
 					fw.write(s + System.lineSeparator());
 				}
