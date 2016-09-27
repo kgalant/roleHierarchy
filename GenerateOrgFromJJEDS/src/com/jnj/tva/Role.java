@@ -9,7 +9,8 @@ public class Role {
 	public String devName;
 	public String description;
 	public Dept correspondingDept;
-	public static HashMap<String,Role> rolesMap;
+	public static HashMap<String,Role> rolesMapById;
+	public static HashMap<String,Role> rolesMapByDevName;
 	
 	public Role (String id, String name, String parentId, String devName, String description) {
 		this.id = id;
@@ -17,12 +18,13 @@ public class Role {
 		this.parentId = parentId;
 		this.devName = devName;
 		this.description = description;
-		rolesMap.put(id, this);
+		rolesMapById.put(id, this);
+		rolesMapByDevName.put(devName, this);
 	}
 	
 	public Role getParentRole() {
-		if (rolesMap.containsKey(parentId)) {
-			return rolesMap.get(parentId);
+		if (rolesMapById.containsKey(parentId)) {
+			return rolesMapById.get(parentId);
 		} else {
 			return null;
 		}
