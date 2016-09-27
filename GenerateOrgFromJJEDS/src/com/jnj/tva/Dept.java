@@ -19,6 +19,7 @@ public class Dept {
 	public HashSet<Employee> employees = new HashSet<Employee>();
 	public HashSet<String> employeeWWIDs = new HashSet<String>();
 	public boolean isDirectReportsDept = false;
+	public boolean isDeptIDManuallySet = false;
 
 	/*	public void addChildDept(String childDeptId) {
 		childDepts.add(childDeptId);
@@ -190,6 +191,8 @@ public class Dept {
 		CSVParts.add(parentDept != null ? "\"" + parentDept.getDeveloperName() + "\"": "" );
 		CSVParts.add("");
 		CSVParts.add("None");
+		CSVParts.add("None");
+		CSVParts.add("Edit");
 		CSVParts.add(""+level);
 
 		retval.add(String.join(",",CSVParts));
@@ -236,8 +239,10 @@ public class Dept {
 	}
 
 	public String getDeveloperName() {
-		if (developerName == null) {
+		if (developerName == null && !isDeptIDManuallySet) {
 			developerName = getDeveloperName(deptName, deptId);
+		} else if (isDeptIDManuallySet) {
+			developerName = deptId;
 		}
 		return developerName;
 	}
