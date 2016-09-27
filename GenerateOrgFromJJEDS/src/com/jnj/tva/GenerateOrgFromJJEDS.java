@@ -54,6 +54,13 @@ public class GenerateOrgFromJJEDS {
 	private static final String SFDCMASTERROLE = "SFDCMasterRole";
 	private static final String SHOWNONTVAUSERS = "showNonTVAUsers";
 	
+	private static final String ROLEFILENAME = "roleFile";
+	private static final String ROLEID = "roleId";
+	private static final String ROLENAME = "roleName";
+	private static final String ROLEPARENTID = "roleParentId";
+	private static final String ROLEDESCRIPTION = "roleDescription";
+	private static final String ROLEDEVNAME = "roleDevName";
+	
 
 
 
@@ -93,6 +100,13 @@ public class GenerateOrgFromJJEDS {
 		String outputUserRolesFile = props.getProperty(OUTPUTUSERROLESFILENAME);
 		String hierarchyOutputPrefix = props.getProperty(HIERARCHYOUTPUTPREFIX);
 
+		final String roleFilename = props.getProperty(ROLEFILENAME);
+		final String roleId = props.getProperty(ROLEID);
+		final String roleName = props.getProperty(ROLENAME);
+		final String roleParentId = props.getProperty(ROLEPARENTID);
+		final String roleDescription = props.getProperty(ROLEDESCRIPTION);
+		final String roleDevName = props.getProperty(ROLEDEVNAME);
+		
 
 
 		// start off - generate a map of employee IDs currently in org
@@ -124,7 +138,33 @@ public class GenerateOrgFromJJEDS {
 		csvData = new File(inputUsersFile);
 		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		counter = 0;
+		
+		// now generate a map of roles
+		
+		Role.rolesMap = new HashMap<String,Role>();
+
+
+		File roleData = new File(roleFilename);
+		parser = CSVParser.parse(roleData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
+
+		for (CSVRecord csvRecord : parser) {
+
+			String id = csvRecord.get(roleId);
+			String name = csvRecord.get(roleName);
+			String parentId = csvRecord.get(roleParentId);
+			String description = csvRecord.get(roleDescription);
+			String devName = csvRecord.get(roleDevName);
+
+			if (id == null || devName == null || id.length() < 0 || devName.length()<0) continue;
+
+			new Role(id, name, parentId, devName, description);
+		}
+		
 		// first pass, generate a list of employees
+		
+		csvData = new File(inputUsersFile);
+		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
+		counter = 0;
 
 		boolean hasWWID;
 		boolean hasManager;
@@ -242,6 +282,7 @@ public class GenerateOrgFromJJEDS {
 				// set its new deptid
 				
 				masterDepartment.deptId = props.getProperty(SFDCMASTERROLE);
+				masterDepartment.isDeptIDManuallySet = true;
 				
 				// add back into map
 				
@@ -337,7 +378,7 @@ public class GenerateOrgFromJJEDS {
 
 			CSVParts.add(myWWIDToUserIDsMap.get(e.WWID));
 			CSVParts.add(myWWIDToUserIDsMap.get(e.managerWWID) == null ? "" : myWWIDToUserIDsMap.get(e.managerWWID));
-			CSVParts.add(e.manager != null ? e.manager.deptId : "");
+			CSVParts.add(e.partOfDept != null ? e.partOfDept.deptId : "");
 			CSVParts.add(e.name);
 			CSVParts.add(e.manager != null ? e.manager.name : "");
 
@@ -354,7 +395,7 @@ public class GenerateOrgFromJJEDS {
 
 		// header row
 
-		fw.write("RollupDescription,DeveloperName,Name,ParentRoleDevName,Id,OpportunityAccessForAccountOwner,Level" + System.lineSeparator());
+		fw.write("RollupDescription,DeveloperName,Name,ParentRoleDevName,Id,OpportunityAccessForAccountOwner,CaseAccessForAccountOwner,ContactAccessForAccountOwner,Level" + System.lineSeparator());
 		ArrayList<String> lines = new ArrayList<String>();
 		for (Dept d : myDeptsMap.values()) {
 			if (d.parentDept == null) {
