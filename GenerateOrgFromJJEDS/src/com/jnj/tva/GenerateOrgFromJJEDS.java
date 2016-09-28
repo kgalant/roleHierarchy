@@ -10,7 +10,6 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Vector;
@@ -28,6 +27,7 @@ public class GenerateOrgFromJJEDS {
 	private static final String TVAUSERSFILE = "TVAusersfile";
 	private static final String IDFIELD = "idfield";
 	private static final String WWIDFIELD = "wwidfield";
+	private static final String ROLEFIELD = "rolefield";
 	private static final String ALLOWEDMRCS = "allowedMRCs";
 	private static final String INPUTUSERSFILE = "inputUsersfile";
 	private static final String INPUTWWIDFIELD = "inputWWIDField";
@@ -38,6 +38,7 @@ public class GenerateOrgFromJJEDS {
 	private static final String INPUTTITLE = "inputTitle";
 	private static final String INPUTSPONSOREMAIL = "inputSponsorEmail";
 	private static final String INPUTSUPERVISOR = "inputSupervisor";
+
 	private static final String INPUTMRC = "inputMRC";
 
 	private static final String OUTPUTHIERARCHYFILENAME = "outputHierarchyFile";
@@ -61,6 +62,8 @@ public class GenerateOrgFromJJEDS {
 	private static final String ROLEDESCRIPTION = "roleDescription";
 	private static final String ROLEDEVNAME = "roleDevName";
 	
+	private static final String UNUSEDROLESFILENAME = "unusedRolesFile";
+	
 
 
 
@@ -79,7 +82,8 @@ public class GenerateOrgFromJJEDS {
 
 		String usersfileFilename = props.getProperty(TVAUSERSFILE);
 		String idFieldName = props.getProperty(IDFIELD);
-		String wwidFieldName = props.getProperty(WWIDFIELD);	
+		String wwidFieldName = props.getProperty(WWIDFIELD);
+		String roleFieldName = props.getProperty(ROLEFIELD);
 		String allowedMRCsList = props.getProperty(ALLOWEDMRCS);
 		allowedMRCs.addAll(Arrays.asList(allowedMRCsList.split(",")));
 		String inputUsersFile = props.getProperty(INPUTUSERSFILE);
@@ -107,11 +111,14 @@ public class GenerateOrgFromJJEDS {
 		final String roleDescription = props.getProperty(ROLEDESCRIPTION);
 		final String roleDevName = props.getProperty(ROLEDEVNAME);
 		
+		final String unusedRolesFilename = props.getProperty(UNUSEDROLESFILENAME);
+		
 
 
 		// start off - generate a map of employee IDs currently in org
 
 		HashMap<String,String> myWWIDToUserIDsMap = new HashMap<String,String>();
+		HashMap<String,String> myUserIdToRoleIDsMap = new HashMap<String,String>();
 
 
 		File csvData = new File(usersfileFilename);
@@ -123,10 +130,12 @@ public class GenerateOrgFromJJEDS {
 
 			String id = csvRecord.get(idFieldName);
 			String WWID = csvRecord.get(wwidFieldName);
+			String userRoleId = csvRecord.get(roleFieldName);
 
 			if (WWID == null || WWID.length()<0) continue;
 
 			myWWIDToUserIDsMap.put(WWID, id);
+			myUserIdToRoleIDsMap.put(id, userRoleId);
 		}
 
 		HashMap<String, Dept> myDeptsMap = new HashMap<String, Dept>();
@@ -140,9 +149,6 @@ public class GenerateOrgFromJJEDS {
 		counter = 0;
 		
 		// now generate a map of roles
-		
-		Role.rolesMap = new HashMap<String,Role>();
-
 
 		File roleData = new File(roleFilename);
 		parser = CSVParser.parse(roleData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
@@ -226,6 +232,15 @@ public class GenerateOrgFromJJEDS {
 			e.managerWWID = managerWWID;
 			e.email = email.toLowerCase();
 			e.title = title;
+			e.roleId = myUserIdToRoleIDsMap.get(myWWIDToUserIDsMap.get(WWID));
+			if (e.roleId != null && e.roleId.length() > 0) {
+				Role r = Role.getRoleById(e.roleId);
+				if (r != null) {
+					r.employees.add(e);
+				} else {
+					System.out.println("Role with id: " + e.roleId + " not found in map for user: " + e.name + "(" + e.WWID + ")");
+				}
+			}
 
 			myWWIDToEmployeeMap.put(WWID, e);
 			myEmailToEmployeeMap.put(email.toLowerCase(), e);
@@ -282,6 +297,7 @@ public class GenerateOrgFromJJEDS {
 				// set its new deptid
 				
 				masterDepartment.deptId = props.getProperty(SFDCMASTERROLE);
+				masterDepartment.developerName = props.getProperty(SFDCMASTERROLE);
 				masterDepartment.isDeptIDManuallySet = true;
 				
 				// add back into map
@@ -300,6 +316,28 @@ public class GenerateOrgFromJJEDS {
 					masterDepartment.childDepts.add(d);
 				}
 			} 
+		}
+		
+		// pass 4.7 - connect depts to Roles (if possible)
+		
+		for (Dept d : myDeptsMap.values()) {
+			Role r = Role.rolesMapByDevName.get(d.getDeveloperName());
+			if (r != null) {
+				d.correspondingRole = r;
+				r.correspondingDept = d; 
+			} else {
+				System.out.println("Couldn't map an existing role to department: " + d.deptName + "(" + d.deptId + ") - devName: " + d.getDeveloperName());
+			}
+		}
+		
+		for (Role r : Role.rolesMapById.values()) {
+			Dept d = Dept.deptsMapByDevName.get(r.devName);
+			if (d != null) {
+				d.correspondingRole = r;
+				r.correspondingDept = d; 
+			} else {
+				System.out.println("Couldn't map an existing dept to role: " + r.name + "(" + r.description + ") - devName: " + r.devName);
+			}
 		}
 
 		// fifth pass - output dept structure - human-friendly
@@ -323,9 +361,22 @@ public class GenerateOrgFromJJEDS {
 		fw.flush();
 		fw.close();
 
-		// pass 5.5 - output dept structure - human-friendly CSV
+		// pass 5.5 - output unused roles
 
-		Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputHierarchyCSVFilename), "UTF-8"));
+		Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(unusedRolesFilename), "UTF-8"));
+		out.write(String.join(",", (new String[]{roleId,roleName,roleParentId,roleDevName, roleDescription, "hasUsers"})) + System.lineSeparator());
+
+		for (Role r : Role.rolesMapById.values()) {
+			if (r.correspondingDept == null) {
+				out.write(r.getRoleAsCsv() + System.lineSeparator());
+			}
+		}
+		out.flush();
+		out.close();
+		
+		// pass 5.7 - output dept structure - human-friendly CSV
+		
+		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputHierarchyCSVFilename), "UTF-8"));
 
 
 		for (Dept d : myDeptsMap.values()) {
@@ -339,6 +390,8 @@ public class GenerateOrgFromJJEDS {
 		}
 		out.flush();
 		out.close();
+		
+		
 
 		// sixth pass - output dept structure - for csv load
 

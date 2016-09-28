@@ -1,6 +1,7 @@
 package com.jnj.tva;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class Role {
 	public String id;
@@ -9,8 +10,10 @@ public class Role {
 	public String devName;
 	public String description;
 	public Dept correspondingDept;
-	public static HashMap<String,Role> rolesMapById;
-	public static HashMap<String,Role> rolesMapByDevName;
+	public static HashMap<String,Role> rolesMapById = new HashMap<String,Role>();
+	public static HashMap<String,Role> rolesMapByDevName = new HashMap<String,Role>();
+	public HashSet<Employee> employees = new HashSet<Employee>();
+	
 	
 	public Role (String id, String name, String parentId, String devName, String description) {
 		this.id = id;
@@ -28,5 +31,17 @@ public class Role {
 		} else {
 			return null;
 		}
+	}
+	
+	public static Role getRoleById (String id) {
+		return rolesMapById.containsKey(id) ? rolesMapById.get(id) : null;
+	}
+	
+	public static Role getRoleByDevName (String devName) {
+		return rolesMapByDevName.containsKey(devName) ? rolesMapById.get(devName) : null;
+	}
+
+	public String getRoleAsCsv() {
+		return String.join(",", (new String[]{id,"\"" + name + "\"",parentId,devName, "\"" + description + "\"", employees.size() > 0 ? "true" : "false"}));
 	}
 }

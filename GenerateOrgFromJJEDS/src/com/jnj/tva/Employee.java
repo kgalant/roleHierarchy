@@ -21,6 +21,7 @@ public class Employee {
 	public Dept managesDept;
 	public Dept partOfDept;
 	public HashSet<Employee> employees = new HashSet<Employee>();
+	public String roleId;
 
 	public Vector<String> getEmployees() {
 		Vector<String> retval = new Vector<String>();
@@ -40,6 +41,8 @@ public class Employee {
 		}
 		return retval;
 	}
+	
+	// TODO: this method needs refactoring, too much duplicated code
 
 	public void generateDeptStructure(HashMap<String, Dept> deptsMap) {
 
@@ -66,6 +69,7 @@ public class Employee {
 
 			managesDept = myNewDept;
 			partOfDept = myNewDept;
+			myNewDept.getDeveloperName();
 
 			deptsMap.put(newDeptKey, myNewDept);
 			
@@ -77,6 +81,7 @@ public class Employee {
 			directReportsDept.manager = this;
 			directReportsDept.parentDept = myNewDept;
 			directReportsDept.isDirectReportsDept = true;
+			directReportsDept.getDeveloperName();
 			myNewDept.childDepts.add(directReportsDept);
 
 			deptsMap.put(newDeptKey + " reports", directReportsDept);
@@ -133,6 +138,7 @@ public class Employee {
 			partOfDept = myNewDept;
 			myNewDept.employees.add(this);
 			myNewDept.parentDept = manager.managesDept;
+			myNewDept.getDeveloperName();
 			
 			deptsMap.put(newDeptKey, myNewDept);
 
@@ -148,6 +154,7 @@ public class Employee {
 			directReportsDept.manager = this;
 			directReportsDept.parentDept = myNewDept;
 			directReportsDept.isDirectReportsDept = true;
+			directReportsDept.getDeveloperName();
 			myNewDept.childDepts.add(directReportsDept);
 			
 			deptsMap.put(newDeptKey + " reports", directReportsDept);
@@ -159,12 +166,6 @@ public class Employee {
 		for (Employee e : employees) {
 			e.generateDeptStructure(deptsMap);
 		}
-
-
-
-
-
-		// I am a an employee which represents a node that has to be added to the dept structure
 	}
 
 	private Dept getNewDept(String newDeptKey, String deptName) {

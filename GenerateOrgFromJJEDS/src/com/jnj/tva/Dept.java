@@ -20,25 +20,10 @@ public class Dept {
 	public HashSet<String> employeeWWIDs = new HashSet<String>();
 	public boolean isDirectReportsDept = false;
 	public boolean isDeptIDManuallySet = false;
-
-	/*	public void addChildDept(String childDeptId) {
-		childDepts.add(childDeptId);
-	}
-
-	public void addEmployee(String employeeWWID) {
-		employeeWWIDs.add(employeeWWID);
-	}
-
-	public void setParentDeptId(Dept parent) {
-		if (parent != null ) {
-			parentDeptId = parent.deptId;
-			parent.addChildDept(deptId);
-		}
-	}
-
-	public String getParentDeptId() {
-		return parentDeptId;
-	}*/
+	
+	public static HashMap<String, Dept> deptsMapByDevName = new HashMap<String, Dept>();
+	
+	public Role correspondingRole;
 
 	public boolean hasRealUsers(HashMap<String,String> WWIDToUserIDsMap) {
 		boolean hasTVAUser = false;
@@ -84,8 +69,6 @@ public class Dept {
 			for (Dept d : childDepts) {
 				Vector<String> recursedRetval = d.getDepts(WWIDToUserIDsMap, myPrefix, showNonTVAUsers);
 				// now prefix the returned strings
-
-				//Collections.sort(recursedRetval);
 
 				for (String s : recursedRetval) {
 					retval.add(myPrefix + s);
@@ -244,6 +227,7 @@ public class Dept {
 		} else if (isDeptIDManuallySet) {
 			developerName = deptId;
 		}
+		deptsMapByDevName.put(developerName, this);
 		return developerName;
 	}
 
