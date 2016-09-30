@@ -22,6 +22,7 @@ public class Employee {
 	public Dept partOfDept;
 	public HashSet<Employee> employees = new HashSet<Employee>();
 	public String roleId;
+	
 
 	public Vector<String> getEmployees() {
 		Vector<String> retval = new Vector<String>();
@@ -44,50 +45,18 @@ public class Employee {
 	
 	// TODO: this method needs refactoring, too much duplicated code
 
-	public void generateDeptStructure(HashMap<String, Dept> deptsMap) {
+	public void generateDeptStructure() {
 
 		if (manager == null) {
 			// if I have no Manager, I am a top-level node
 
-			// check if the dept I am part of already exists
+			String newDeptKey = getNewDeptKey(deptId);
 
-			String newDeptKey = deptId;
-
-			if (deptsMap.containsKey(newDeptKey)) {
-				// dept with my deptid already seen, so generate a new deptid
-
-				int suffix = 1;
-
-				do {
-					newDeptKey = deptId + "-" + suffix++;
-				} while (deptsMap.containsKey(newDeptKey));						
-			}
-
-			Dept myNewDept = getNewDept(newDeptKey, title);
-
-			myNewDept.manager = this;
-
-			managesDept = myNewDept;
-			partOfDept = myNewDept;
-			myNewDept.getDeveloperName();
-
-			deptsMap.put(newDeptKey, myNewDept);
+			Dept myNewDept = generateNewDept(newDeptKey);
 			
-			System.out.println("Created dept: " + myNewDept.deptName + "(" + myNewDept.deptId + "), manager: " + myNewDept.manager.name);
-
 			// generate a dept for direct reports without own reports (leaf nodes)
 
-			Dept directReportsDept = getNewDept(newDeptKey + " reports", title + " reports");
-			directReportsDept.manager = this;
-			directReportsDept.parentDept = myNewDept;
-			directReportsDept.isDirectReportsDept = true;
-			directReportsDept.getDeveloperName();
-			myNewDept.childDepts.add(directReportsDept);
-
-			deptsMap.put(newDeptKey + " reports", directReportsDept);
-			
-			System.out.println("Created dept: " + directReportsDept.deptName + "(" + directReportsDept.deptId + "), manager: " + directReportsDept.manager.name);
-
+			generateNewReportsDept(myNewDept);
 
 		} else if (manager != null && employees.isEmpty()) {
 			// if I have a manager, but no employees, I am a leaf node
@@ -120,51 +89,17 @@ public class Employee {
 
 			// check if the dept I am part of already exists
 
-			String newDeptKey = deptId;
+			String newDeptKey = getNewDeptKey(deptId);
 
-			if (deptsMap.containsKey(newDeptKey)) {
-				// dept with my deptid already seen, so generate a new deptid
-
-				int suffix = 1;
-
-				do {
-					newDeptKey = deptId + "-" + suffix++;
-				} while (deptsMap.containsKey(newDeptKey));						
-			}
-
-			Dept myNewDept = getNewDept(newDeptKey, title);
-
-			managesDept = myNewDept;
-			partOfDept = myNewDept;
-			myNewDept.employees.add(this);
-			myNewDept.parentDept = manager.managesDept;
-			myNewDept.getDeveloperName();
-			
-			deptsMap.put(newDeptKey, myNewDept);
-
-			manager.managesDept.childDepts.add(myNewDept);
-			
-			
-			System.out.println("Created dept: " + myNewDept.deptName + "(" + myNewDept.deptId + "), manager: " + myNewDept.manager.name +
-					", child of dept: " + myNewDept.parentDept.deptName);
+			Dept myNewDept = generateNewDept(newDeptKey);
 
 			// generate a dept for direct reports without own reports (leaf nodes)
 
-			Dept directReportsDept = getNewDept(newDeptKey + " reports", title + " reports");
-			directReportsDept.manager = this;
-			directReportsDept.parentDept = myNewDept;
-			directReportsDept.isDirectReportsDept = true;
-			directReportsDept.getDeveloperName();
-			myNewDept.childDepts.add(directReportsDept);
-			
-			deptsMap.put(newDeptKey + " reports", directReportsDept);
-			
-			System.out.println("Created dept: " + directReportsDept.deptName + "(" + directReportsDept.deptId + "), manager: " + directReportsDept.manager.name);
-
+			generateNewReportsDept(myNewDept);
 		}
 
 		for (Employee e : employees) {
-			e.generateDeptStructure(deptsMap);
+			e.generateDeptStructure();
 		}
 	}
 
@@ -216,4 +151,55 @@ public class Employee {
 		CSVParts.add(partOfDept.getDeveloperName());
 		return String.join(",",CSVParts);
 	}
+	
+	private String getNewDeptKey(String deptId) {
+		String newDeptKey = deptId;
+
+		// check if the dept I am part of already exists
+
+		if (Dept.deptsMapByDeptId.containsKey(newDeptKey)) {
+			// dept with my deptid already seen, so generate a new deptid
+
+			int suffix = 1;
+
+			do {
+				newDeptKey = deptId + "-" + suffix++;
+			} while (Dept.deptsMapByDeptId.containsKey(newDeptKey));						
+		}
+		return newDeptKey;
+	}
+	
+	private Dept generateNewDept(String newDeptKey) {
+		Dept myNewDept = getNewDept(newDeptKey, title);
+		myNewDept.manager = this;
+		myNewDept.employees.add(this);
+		managesDept = myNewDept;
+		partOfDept = myNewDept;
+		myNewDept.getDeveloperName();
+		
+		if (manager != null) {
+			myNewDept.parentDept = manager.managesDept;
+			manager.managesDept.childDepts.add(myNewDept);
+		}
+		Dept.deptsMapByDeptId.put(newDeptKey, myNewDept);
+		System.out.println("Created dept: " + myNewDept.deptName + "(" + myNewDept.deptId + "), manager: " + myNewDept.manager.name +
+				manager != null ? ", child of dept: " + myNewDept.parentDept.deptName : "");
+		return myNewDept;
+	}
+	
+	private Dept generateNewReportsDept(Dept myNewDept) {
+		Dept directReportsDept = getNewDept(myNewDept.deptId + " reports", title + " reports");
+		directReportsDept.manager = this;
+		directReportsDept.parentDept = myNewDept;
+		directReportsDept.isDirectReportsDept = true;
+		directReportsDept.getDeveloperName();
+		myNewDept.childDepts.add(directReportsDept);
+
+		Dept.deptsMapByDeptId.put(myNewDept.deptId + " reports", directReportsDept);
+		
+		System.out.println("Created dept: " + directReportsDept.deptName + "(" + directReportsDept.deptId + "), manager: " + directReportsDept.manager.name);
+		return directReportsDept;
+	}
+	
+	
 }
