@@ -138,7 +138,7 @@ public class GenerateOrgFromJJEDS {
 			myUserIdToRoleIDsMap.put(id, userRoleId);
 		}
 
-		HashMap<String, Dept> myDeptsMap = new HashMap<String, Dept>();
+		//HashMap<String, Dept> myDeptsMap = new HashMap<String, Dept>();
 		HashMap<String, Employee> myEmailToEmployeeMap = new HashMap<String, Employee>();
 		HashMap<String, Employee> myWWIDToEmployeeMap = new HashMap<String, Employee>();
 
@@ -272,7 +272,7 @@ public class GenerateOrgFromJJEDS {
 		for (Employee e : myWWIDToEmployeeMap.values()) {
 			if (e.manager == null) {
 				// top level employee - generate dept structure
-				e.generateDeptStructure(myDeptsMap);
+				e.generateDeptStructure();
 			}
 		}
 		
@@ -282,7 +282,7 @@ public class GenerateOrgFromJJEDS {
 			
 			Dept masterDepartment = null;
 			
-			for (Dept d : myDeptsMap.values()) {
+			for (Dept d : Dept.deptsMapByDeptId.values()) {
 				if (d.parentDept == null && d.manager.WWID.equals(props.getProperty(MASTERROLEID)) && !d.isDirectReportsDept) {
 					masterDepartment = d;
 					break;
@@ -292,7 +292,7 @@ public class GenerateOrgFromJJEDS {
 			if (masterDepartment != null) {
 				// out of the loop, remove the master dept from the current map
 				
-				myDeptsMap.remove(masterDepartment.deptId);
+				Dept.deptsMapByDeptId.remove(masterDepartment.deptId);
 				
 				// set its new deptid
 				
@@ -302,12 +302,12 @@ public class GenerateOrgFromJJEDS {
 				
 				// add back into map
 				
-				myDeptsMap.put(masterDepartment.deptId, masterDepartment);
+				Dept.deptsMapByDeptId.put(masterDepartment.deptId, masterDepartment);
 			}
 
 			// now run through all other depts which don't have a parent, and point them at the master
 			
-			for (Dept d : myDeptsMap.values()) {
+			for (Dept d : Dept.deptsMapByDeptId.values()) {
 				if (d.parentDept == null && d != masterDepartment) {
 					// top level dept - but not the master dept
 					// put it under the master role
@@ -320,7 +320,7 @@ public class GenerateOrgFromJJEDS {
 		
 		// pass 4.7 - connect depts to Roles (if possible)
 		
-		for (Dept d : myDeptsMap.values()) {
+		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			Role r = Role.rolesMapByDevName.get(d.getDeveloperName());
 			if (r != null) {
 				d.correspondingRole = r;
@@ -345,7 +345,7 @@ public class GenerateOrgFromJJEDS {
 		File outputData = new File(outputHierarchyFilename);
 		FileWriter fw = new FileWriter(outputData);
 
-		for (Dept d : myDeptsMap.values()) {
+		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			if (d.parentDept == null) {
 				// top level dept - output it
 				Vector<String> deptNames = d.getDepts(myWWIDToUserIDsMap, hierarchyOutputPrefix, 
@@ -379,7 +379,7 @@ public class GenerateOrgFromJJEDS {
 		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputHierarchyCSVFilename), "UTF-8"));
 
 
-		for (Dept d : myDeptsMap.values()) {
+		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			if (d.parentDept == null) {
 				// top level dept - output it
 				Vector<String> deptNames = d.getDeptsDeptPrefixed(myWWIDToUserIDsMap, null);
@@ -403,7 +403,7 @@ public class GenerateOrgFromJJEDS {
 
 		out.write("Dept_ID_source__c,Parent_ID_source__c,Name_source__c,Manager_WWID,Manager_source__c,Manager_Name" + System.lineSeparator());
 
-		for (Dept d : myDeptsMap.values()) {
+		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			if (d.parentDept == null) {
 				// top level dept - output it
 				Vector<String> deptNames = d.getDeptsCSV(myWWIDToUserIDsMap);
@@ -450,7 +450,7 @@ public class GenerateOrgFromJJEDS {
 
 		fw.write("RollupDescription,DeveloperName,Name,ParentRoleDevName,Id,OpportunityAccessForAccountOwner,CaseAccessForAccountOwner,ContactAccessForAccountOwner,Level" + System.lineSeparator());
 		ArrayList<String> lines = new ArrayList<String>();
-		for (Dept d : myDeptsMap.values()) {
+		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			if (d.parentDept == null) {
 				//if (d.manager != null && d.manager.WWID.equals("85010410")) {
 				// top level dept - output it

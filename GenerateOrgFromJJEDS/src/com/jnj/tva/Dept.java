@@ -22,6 +22,7 @@ public class Dept {
 	public boolean isDeptIDManuallySet = false;
 	
 	public static HashMap<String, Dept> deptsMapByDevName = new HashMap<String, Dept>();
+	public static HashMap<String, Dept> deptsMapByDeptId = new HashMap<String, Dept>();
 	
 	public Role correspondingRole;
 
