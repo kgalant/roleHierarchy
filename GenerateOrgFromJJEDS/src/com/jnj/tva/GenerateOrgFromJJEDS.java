@@ -50,20 +50,31 @@ public class GenerateOrgFromJJEDS {
 	private static final String OUTPUTUSERROLESFILENAME = "outputUserRolesFile";
 
 	private static final String HIERARCHYOUTPUTPREFIX = "hierarchyOutputPrefix";
-	
+
 	private static final String MASTERROLEID = "masterRoleId";
 	private static final String SFDCMASTERROLE = "SFDCMasterRole";
 	private static final String SHOWNONTVAUSERS = "showNonTVAUsers";
-	
+
 	private static final String ROLEFILENAME = "roleFile";
 	private static final String ROLEID = "roleId";
 	private static final String ROLENAME = "roleName";
 	private static final String ROLEPARENTID = "roleParentId";
 	private static final String ROLEDESCRIPTION = "roleDescription";
 	private static final String ROLEDEVNAME = "roleDevName";
-	
+
 	private static final String UNUSEDROLESFILENAME = "unusedRolesFile";
-	
+
+	private static final String UNUSEDOBSFILENAME = "unusedOBSFile";
+	private static final String OBSFILENAME = "OBSFile";
+
+	private static final String ID = "OBSId";
+	private static final String MANAGER_SOURCE__C = "OBSManager";
+	private static final String NAME_SOURCE__C = "OBSName";
+	private static final String PARENT_ID_SOURCE__C = "OBSParent";
+	private static final String DEPT_ID_SOURCE__C = "OBSDeptId";
+
+	public static HashMap<String,String> myUserIdToRoleIDsMap = new HashMap<String,String>();
+
 
 
 
@@ -110,19 +121,66 @@ public class GenerateOrgFromJJEDS {
 		final String roleParentId = props.getProperty(ROLEPARENTID);
 		final String roleDescription = props.getProperty(ROLEDESCRIPTION);
 		final String roleDevName = props.getProperty(ROLEDEVNAME);
-		
+
 		final String unusedRolesFilename = props.getProperty(UNUSEDROLESFILENAME);
-		
+
+		final String OBSId = props.getProperty(ID);
+		final String OBSManager = props.getProperty(MANAGER_SOURCE__C);
+		final String OBSName = props.getProperty(NAME_SOURCE__C);
+		final String OBSParent = props.getProperty(PARENT_ID_SOURCE__C);
+		final String OBSDeptId = props.getProperty(DEPT_ID_SOURCE__C);
+
+		final String unusedOBSFilename = props.getProperty(UNUSEDOBSFILENAME);
+		final String OBSFilename = props.getProperty(OBSFILENAME);
+
+
+
+		// now generate a map of roles
+
+		File roleData = new File(roleFilename);
+		CSVParser parser = CSVParser.parse(roleData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
+
+		for (CSVRecord csvRecord : parser) {
+
+			String id = csvRecord.get(roleId);
+			String name = csvRecord.get(roleName);
+			String parentId = csvRecord.get(roleParentId);
+			String description = csvRecord.get(roleDescription);
+			String devName = csvRecord.get(roleDevName);
+
+			if (id == null || devName == null || id.length() < 0 || devName.length()<0) continue;
+
+			new Role(id, name, parentId, devName, description);
+		}
+
+		// now generate a map of OBS Depts
+
+		File OBSData = new File(OBSFilename);
+		parser = CSVParser.parse(OBSData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
+
+		for (CSVRecord csvRecord : parser) {
+
+			String id = csvRecord.get(OBSId);
+			String name = csvRecord.get(OBSName);
+			String parentId = csvRecord.get(OBSParent);
+			String manager = csvRecord.get(OBSManager);
+			String deptId = csvRecord.get(OBSDeptId);
+
+			if (id == null || deptId == null || id.length() < 0 || deptId.length()<0) continue;
+
+			new OBSDept(id, name, parentId, manager, deptId);
+		}
+
 
 
 		// start off - generate a map of employee IDs currently in org
 
 		HashMap<String,String> myWWIDToUserIDsMap = new HashMap<String,String>();
-		HashMap<String,String> myUserIdToRoleIDsMap = new HashMap<String,String>();
+
 
 
 		File csvData = new File(usersfileFilename);
-		CSVParser parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
+		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		int counter = 0;
 
 
@@ -147,27 +205,10 @@ public class GenerateOrgFromJJEDS {
 		csvData = new File(inputUsersFile);
 		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		counter = 0;
-		
-		// now generate a map of roles
 
-		File roleData = new File(roleFilename);
-		parser = CSVParser.parse(roleData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 
-		for (CSVRecord csvRecord : parser) {
-
-			String id = csvRecord.get(roleId);
-			String name = csvRecord.get(roleName);
-			String parentId = csvRecord.get(roleParentId);
-			String description = csvRecord.get(roleDescription);
-			String devName = csvRecord.get(roleDevName);
-
-			if (id == null || devName == null || id.length() < 0 || devName.length()<0) continue;
-
-			new Role(id, name, parentId, devName, description);
-		}
-		
 		// first pass, generate a list of employees
-		
+
 		csvData = new File(inputUsersFile);
 		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		counter = 0;
@@ -275,61 +316,68 @@ public class GenerateOrgFromJJEDS {
 				e.generateDeptStructure();
 			}
 		}
-		
+
 		// pass 4.5 - restructure hierarchy if required
-		
+
 		if (props.getProperty(MASTERROLEID) != null && props.getProperty(SFDCMASTERROLE) != null) {
-			
+
 			Dept masterDepartment = null;
-			
+
 			for (Dept d : Dept.deptsMapByDeptId.values()) {
 				if (d.parentDept == null && d.manager.WWID.equals(props.getProperty(MASTERROLEID)) && !d.isDirectReportsDept) {
 					masterDepartment = d;
 					break;
 				}
 			}
-			
+
 			if (masterDepartment != null) {
 				// out of the loop, remove the master dept from the current map
-				
+
 				Dept.deptsMapByDeptId.remove(masterDepartment.deptId);
-				
+
 				// set its new deptid
-				
+
 				masterDepartment.deptId = props.getProperty(SFDCMASTERROLE);
 				masterDepartment.developerName = props.getProperty(SFDCMASTERROLE);
 				masterDepartment.isDeptIDManuallySet = true;
-				
+
 				// add back into map
-				
+
 				Dept.deptsMapByDeptId.put(masterDepartment.deptId, masterDepartment);
 			}
 
 			// now run through all other depts which don't have a parent, and point them at the master
-			
+
 			for (Dept d : Dept.deptsMapByDeptId.values()) {
 				if (d.parentDept == null && d != masterDepartment) {
 					// top level dept - but not the master dept
 					// put it under the master role
-					
+
 					d.parentDept = masterDepartment;
 					masterDepartment.childDepts.add(d);
 				}
 			} 
 		}
-		
-		// pass 4.7 - connect depts to Roles (if possible)
-		
+
+		// pass 4.7 - connect depts to Roles, OBS (if possible)
+
 		for (Dept d : Dept.deptsMapByDeptId.values()) {
 			Role r = Role.rolesMapByDevName.get(d.getDeveloperName());
+			OBSDept o = OBSDept.OBSMapByDeptId.get(d.deptId);
 			if (r != null) {
 				d.correspondingRole = r;
 				r.correspondingDept = d; 
 			} else {
 				System.out.println("Couldn't map an existing role to department: " + d.deptName + "(" + d.deptId + ") - devName: " + d.getDeveloperName());
 			}
+			if (o != null) {
+				d.correspondingOBS = o;
+				o.correspondingDept = d; 
+			} else {
+				System.out.println("Couldn't map an existing OBS to department: " + d.deptName + "(" + d.deptId + ")");
+			}
 		}
-		
+
 		for (Role r : Role.rolesMapById.values()) {
 			Dept d = Dept.deptsMapByDevName.get(r.devName);
 			if (d != null) {
@@ -373,9 +421,9 @@ public class GenerateOrgFromJJEDS {
 		}
 		out.flush();
 		out.close();
-		
+
 		// pass 5.7 - output dept structure - human-friendly CSV
-		
+
 		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputHierarchyCSVFilename), "UTF-8"));
 
 
@@ -390,8 +438,8 @@ public class GenerateOrgFromJJEDS {
 		}
 		out.flush();
 		out.close();
-		
-		
+
+
 
 		// sixth pass - output dept structure - for csv load
 
@@ -487,31 +535,6 @@ public class GenerateOrgFromJJEDS {
 		fw.close();
 
 		// ninth pass - users in role hierarchy
-
-		outputData = new File(outputUserRolesFile);
-		fw = new FileWriter(outputData);
-
-		// header row
-		/*
-		fw.write("Id,WWID,RoleDeveloperName" + System.lineSeparator());
-		lines.clear();
-		for (Dept d : myDeptsMap.values()) {
-			if (d.parentDept == null) {
-			//if (d.manager != null && d.manager.WWID.equals("85010410")) { // manager hack to output below a certain manager only
-				// top level dept - output it
-				Vector<String> deptNames = d.getUserRolesCSV(myWWIDToUserIDsMap);
-				for (String s : deptNames) {
-					fw.write(s + System.lineSeparator());
-				}
-			}
-		}
-
-		fw.flush();
-		fw.close();
-
-		 */
-
-		// tenth pass - users in role hierarchy
 
 		outputData = new File(outputUserRolesFile);
 		fw = new FileWriter(outputData);

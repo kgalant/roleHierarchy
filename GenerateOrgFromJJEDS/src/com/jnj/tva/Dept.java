@@ -1,6 +1,7 @@
 package com.jnj.tva;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
@@ -25,6 +26,7 @@ public class Dept {
 	public static HashMap<String, Dept> deptsMapByDeptId = new HashMap<String, Dept>();
 	
 	public Role correspondingRole;
+	public OBSDept correspondingOBS;
 
 	public boolean hasRealUsers(HashMap<String,String> WWIDToUserIDsMap) {
 		boolean hasTVAUser = false;
@@ -58,11 +60,44 @@ public class Dept {
 			return retval;
 		}
 
-		retval.add("D: ID:" + deptId + " | NAME: " + deptName + " | manager: " + manager.name);
+		String line = "D: ID:" + deptId + " | NAME: " + deptName + " | manager: " + manager.name + " Role: ";
+		if (this.correspondingRole != null) {
+			line += this.correspondingRole.devName;
+		} else {
+			line += "no match ";
+		}
+		line += " OBSDept: ";
+		if (this.correspondingOBS != null) {
+			line += this.correspondingOBS.name;
+		} else {
+			line += "no match";
+		}
+		
+		retval.add(line);
 
-		for (Employee e : employees) {
+		ArrayList<Employee> employeeList = new ArrayList<Employee>(employees);
+		Collections.sort(employeeList);
+		
+		for (Employee e : employeeList) {
 			if (WWIDToUserIDsMap.get(e.WWID) != null || showNonTVAUsers) {
-				retval.add(myPrefix + "E: " + (WWIDToUserIDsMap.get(e.WWID) != null ? "" : " ** ") + e.name + " | " + deptName);
+				line = myPrefix + "E: " + (WWIDToUserIDsMap.get(e.WWID) != null ? "" : " ** ") + e.name + " | " + deptName;
+				String existingRole = e.getRole();
+				String existingRoleId = e.roleId;
+				String designatedRoleDevName = e.partOfDept.developerName;
+				String correspondingRoleDevName = e.partOfDept.correspondingRole == null ? "" : e.partOfDept.correspondingRole.devName;
+				String correspondingRoleId = e.partOfDept.correspondingRole == null ? "" : e.partOfDept.correspondingRole.id;
+				if (existingRole != null && existingRoleId.equals(correspondingRoleId)) {
+					line += " R(match): " + correspondingRoleId + "/" + correspondingRoleDevName;
+				} else {
+					line += " R(diff): corr: " + correspondingRoleId + "/" + correspondingRoleDevName;
+					line += " dsg: " + designatedRoleDevName + " existing: " + existingRoleId + "/" + existingRole; 
+				}
+				
+				retval.add(line);
+				
+				
+				//retval.add(myPrefix + "E: " + (WWIDToUserIDsMap.get(e.WWID) != null ? "" : " ** ") + e.name + " | " + deptName + 
+				//		" R: " + (e.getRole().equals("") ? "No role found, roleId: " + e.roleId : e.getRole()));
 			}
 		}
 

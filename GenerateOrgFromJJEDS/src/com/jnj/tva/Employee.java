@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Vector;
 
-public class Employee {
+public class Employee implements Comparable<Employee>{
 
 	private static final String prefix = "|---";
 
@@ -22,6 +22,10 @@ public class Employee {
 	public Dept partOfDept;
 	public HashSet<Employee> employees = new HashSet<Employee>();
 	public String roleId;
+	
+	public int compareTo(Employee e) {
+		return name.compareTo(e.name);
+	}
 	
 
 	public Vector<String> getEmployees() {
@@ -98,7 +102,10 @@ public class Employee {
 			generateNewReportsDept(myNewDept);
 		}
 
-		for (Employee e : employees) {
+		ArrayList<Employee> employeeList = new ArrayList<Employee>(employees);
+		Collections.sort(employeeList);
+		
+		for (Employee e : employeeList) {
 			e.generateDeptStructure();
 		}
 	}
@@ -183,7 +190,7 @@ public class Employee {
 		}
 		Dept.deptsMapByDeptId.put(newDeptKey, myNewDept);
 		System.out.println("Created dept: " + myNewDept.deptName + "(" + myNewDept.deptId + "), manager: " + myNewDept.manager.name +
-				manager != null ? ", child of dept: " + myNewDept.parentDept.deptName : "");
+				(manager != null ? ", child of dept: " + myNewDept.parentDept.deptName : ""));
 		return myNewDept;
 	}
 	
@@ -201,5 +208,13 @@ public class Employee {
 		return directReportsDept;
 	}
 	
+	public String getRole() {
+		String retval = "";
+		Role myRole = Role.rolesMapById.get(roleId);
+		if (myRole != null) {
+			retval = myRole.devName;
+		}
+		return retval;
+	}
 	
 }
