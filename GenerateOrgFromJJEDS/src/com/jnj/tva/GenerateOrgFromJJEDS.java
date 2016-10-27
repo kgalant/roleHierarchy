@@ -24,6 +24,11 @@ public class GenerateOrgFromJJEDS {
 
 	private static ArrayList<String> allowedMRCs = new ArrayList<String>();
 
+	private static final String BASEDIR = "baseDirectory";
+	private static final String INPUTDIR = "inputDirectory"; 
+	private static final String OUTPUTDIR = "outputDirectory";
+	
+	
 	private static final String TVAUSERSFILE = "TVAusersfile";
 	private static final String IDFIELD = "idfield";
 	private static final String WWIDFIELD = "wwidfield";
@@ -133,11 +138,14 @@ public class GenerateOrgFromJJEDS {
 		final String unusedOBSFilename = props.getProperty(UNUSEDOBSFILENAME);
 		final String OBSFilename = props.getProperty(OBSFILENAME);
 
+		final String baseDir = Utils.checkPathSlash(props.getProperty(BASEDIR));
+		final String inputDir = baseDir + Utils.checkPathSlash(props.getProperty(INPUTDIR));
+		final String outputDir = baseDir + Utils.checkPathSlash(props.getProperty(OUTPUTDIR));
 
 
 		// now generate a map of roles
 
-		File roleData = new File(roleFilename);
+		File roleData = new File(inputDir + roleFilename);
 		CSVParser parser = CSVParser.parse(roleData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 
 		for (CSVRecord csvRecord : parser) {
@@ -155,7 +163,7 @@ public class GenerateOrgFromJJEDS {
 
 		// now generate a map of OBS Depts
 
-		File OBSData = new File(OBSFilename);
+		File OBSData = new File(inputDir + OBSFilename);
 		parser = CSVParser.parse(OBSData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 
 		for (CSVRecord csvRecord : parser) {
@@ -179,7 +187,7 @@ public class GenerateOrgFromJJEDS {
 
 
 
-		File csvData = new File(usersfileFilename);
+		File csvData = new File(inputDir + usersfileFilename);
 		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		int counter = 0;
 
@@ -200,16 +208,9 @@ public class GenerateOrgFromJJEDS {
 		HashMap<String, Employee> myEmailToEmployeeMap = new HashMap<String, Employee>();
 		HashMap<String, Employee> myWWIDToEmployeeMap = new HashMap<String, Employee>();
 
-
-
-		csvData = new File(inputUsersFile);
-		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
-		counter = 0;
-
-
 		// first pass, generate a list of employees
 
-		csvData = new File(inputUsersFile);
+		csvData = new File(inputDir + inputUsersFile);
 		parser = CSVParser.parse(csvData, Charset.forName("UTF-8") , CSVFormat.EXCEL.withHeader());
 		counter = 0;
 
@@ -296,7 +297,7 @@ public class GenerateOrgFromJJEDS {
 			}
 		}
 
-		// third pass - write out all the managers
+		// third pass - write out (screen) all the managers
 
 		for (Employee e : myWWIDToEmployeeMap.values()) {
 			if (e.manager == null) {
@@ -390,7 +391,7 @@ public class GenerateOrgFromJJEDS {
 
 		// fifth pass - output dept structure - human-friendly
 
-		File outputData = new File(outputHierarchyFilename);
+		File outputData = new File(outputDir + outputHierarchyFilename);
 		FileWriter fw = new FileWriter(outputData);
 
 		for (Dept d : Dept.deptsMapByDeptId.values()) {
@@ -411,7 +412,7 @@ public class GenerateOrgFromJJEDS {
 
 		// pass 5.5 - output unused roles
 
-		Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(unusedRolesFilename), "UTF-8"));
+		Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputDir + unusedRolesFilename), "UTF-8"));
 		out.write(String.join(",", (new String[]{roleId,roleName,roleParentId,roleDevName, roleDescription, "hasUsers"})) + System.lineSeparator());
 
 		for (Role r : Role.rolesMapById.values()) {
@@ -424,7 +425,7 @@ public class GenerateOrgFromJJEDS {
 
 		// pass 5.7 - output dept structure - human-friendly CSV
 
-		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputHierarchyCSVFilename), "UTF-8"));
+		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputDir + outputHierarchyCSVFilename), "UTF-8"));
 
 
 		for (Dept d : Dept.deptsMapByDeptId.values()) {
@@ -444,7 +445,7 @@ public class GenerateOrgFromJJEDS {
 		// sixth pass - output dept structure - for csv load
 
 
-		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputDeptFilename), "UTF-8"));
+		out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputDir + outputDeptFilename), "UTF-8"));
 
 
 		// header row
@@ -465,7 +466,7 @@ public class GenerateOrgFromJJEDS {
 
 		// seventh pass - output employee mappings to department, managerID updates
 
-		outputData = new File(outputUsersDataFilename);
+		outputData = new File(outputDir + outputUsersDataFilename);
 		fw = new FileWriter(outputData);
 
 		// header row
@@ -491,7 +492,7 @@ public class GenerateOrgFromJJEDS {
 
 		// eighth pass - role hierarchy
 
-		outputData = new File(outputRolesFilename);
+		outputData = new File(outputDir + outputRolesFilename);
 		fw = new FileWriter(outputData);
 
 		// header row
@@ -536,7 +537,7 @@ public class GenerateOrgFromJJEDS {
 
 		// ninth pass - users in role hierarchy
 
-		outputData = new File(outputUserRolesFile);
+		outputData = new File(outputDir + outputUserRolesFile);
 		fw = new FileWriter(outputData);
 
 		// header row
